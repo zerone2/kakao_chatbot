@@ -2,7 +2,9 @@
   "name": "kakao_chatbot",
   "version": "1.0.0",
   "dependencies": {
+    "body-parser": "latest",
     "express": "latest",
-    "body-parser": "latest"
+    "express-session": "^1.15.6",
+    "session-file-store": "^1.2.0"
   }
 }

@@ -2,6 +2,7 @@
 /dist
 /tmp
 /build
+/sessions
 
 # Bower dependency directory (https://bower.io/)
 bower_components
