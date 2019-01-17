@@ -6,5 +6,9 @@
     "express": "latest",
     "express-session": "^1.15.6",
     "session-file-store": "^1.2.0"
+  },
+  "devDependencies": {
+    "connect-mongo": "^2.0.3",
+    "mongoose": "^5.4.4"
   }
 }
