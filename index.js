@@ -2,8 +2,9 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
+const mysqlDB = require('./mysql-db');
 // const FileStore = require('session-file-store')(session);
-const mongoose = require('mongoose');
+/*const mongoose = require('mongoose');
 const MongoStore = require('connect-mongo')(session);
 mongoose.connect('mongodb://localhost/zipadvisor_user');
 const db = mongoose.connection;
@@ -23,9 +24,10 @@ const UserSchema = mongoose.Schema({
   acquiredDate: String,
   acquiredPrice: Number
 });
-const User = mongoose.model('user', UserSchema);
+const User = mongoose.model('user', UserSchema);*/
 
 const app = express();
+mysqlDB.connect();
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
@@ -33,15 +35,30 @@ app.use(session({
   secret: 'zipfund@zipfund.co', // 암호화
   resave: false,
   saveUninitialized: true,
-  store: new MongoStore({
+  /*store: new MongoStore({
     url: "mongodb://localhost/zipadvisor_user",
     collection: "sessions"
-  })
+  })*/
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/dbtest', (req, res) => {
+  mysqlDB.query('select * from users', function(err, rows, fields) {
+    if(!err) {
+      console.log(rows);
+      console.log(fields);
+      let result = 'rows : ' + JSON.stringify(rows) + '<br><br>' +
+        'fields : ' + JSON.stringify(fields);
+      res.send(result);
+    } else {
+      console.log('query error : ' + err);
+      res.send(err);
+    }
+  })
 });
 
 app.get('/keyboard', (req, res) => {  // 최초
@@ -64,7 +81,7 @@ app.post('/message', (req, res) => {  // 사용자 메시지 입력
   // req.session.user_key = user_key;
   // req.session.userSelect = content;
   req.session.userStatus = "true";
-  let answer = checkUser(req, user_key).then(() => console.log('no error'));
+  let answer = checkUser(user_key);
 
   console.log(answer);
   if(req.session.userStatus === "false") {
@@ -83,10 +100,11 @@ app.post('/message', (req, res) => {  // 사용자 메시지 입력
   }
 
   req.session.destroy();
+  mysqlDB.end();
   res.send(answer);
 });
 
-const checkUser = async (req, user_key) => {
+const checkUser = (user_key) => {
   let message = {
     "message": {
       "text": ""
@@ -98,65 +116,29 @@ const checkUser = async (req, user_key) => {
     "buttons": ["예", "아니오"]
   };
 
-  console.log('before findOne');
-  await User.findOne({"key": user_key})
-    .then((user) => {
-      if(user) {
-        message = {
-          "message": {
-            "text": "이미 존재하는 유저입니다.\n이어서 작성하시겠습니까?"
-          },
-          "keyboard": answer
-        };
-        console.log(message);
-        return message;
-      } else {
-        User.create({"key": user_key}, (err) => {
-          // if(err) return res.json(err);
-          if (err) return false;
-
-          console.log('Success');
-          return "new";
-        });
-      }
-    }).catch((err) => {
-      return false;
-    });
-
-  /*User.findOne({"key": user_key}, (err, user) => {
-    if(err) return false;
-
-    if(user) {
-      console.log('user key already exist');
-
-      //res.send('이미 존재하는 유저입니다.\n이어서 작성하시겠습니까?');
-      //req.session.userStatus = "exist";
+  mysqlDB.query(`select * from users where kakao_key=\'${user_key}\'`, (err, rows, fields) => {
+    console.log("in the query");
+    if(!err) {
+      console.log(rows);
+      //console.log(fields);
       message = {
         "message": {
-          "text": "이미 존재하는 유저입니다.\n이어서 작성하시겠습니까?"
+          "text": "이미 존재하는 유저입니다. \n이어서 작성하시겠습니까?"
         },
         "keyboard": answer
       };
       console.log(message);
-      return message;
-      //askAddress();
-      /!*User
-        .updateOne({"key": user_key}, {"name": "exist"})
-        .then(result => {
-          return `[${result}], exist 님 정보가 생성되었습니다.`;
-        });*!/
+      console.log("===============");
     } else {
-      User.create({"key": user_key}, (err) => {
-        // if(err) return res.json(err);
-        if(err) return false;
-
-        console.log('Success');
-        return "new";
-        //res.redirect('/message');
-      });
+      console.log('query error : ' + err);
+      message = {
+        "message": {
+          "text": `query error : ${err}`
+        },
+      };
     }
-    console.log('inside findONe');
-  })*/
+    return message;
+  });
 };
 
 
