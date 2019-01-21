@@ -3,9 +3,10 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 // const FileStore = require('session-file-store')(session);
+require('dotenv').config();
 const mongoose = require('mongoose');
 const MongoStore = require('connect-mongo')(session);
-mongoose.connect('mongodb://localhost/zipadvisor_user');
+mongoose.connect(process.env.MONGO_URI, {useNewUrlParser: true});
 const db = mongoose.connection;
 
 db.once('err', () => {
@@ -23,7 +24,7 @@ const UserSchema = mongoose.Schema({
   acquiredDate: String,
   acquiredPrice: Number
 });
-const User = mongoose.model('user', UserSchema);
+const User = mongoose.model('users', UserSchema);
 
 const app = express();
 
@@ -34,7 +35,7 @@ app.use(session({
   resave: false,
   saveUninitialized: true,
   store: new MongoStore({
-    url: "mongodb://localhost/zipadvisor_user",
+    url: process.env.MONGO_URI,
     collection: "sessions"
   })
 }));
@@ -63,10 +64,27 @@ app.post('/message', (req, res) => {  // 사용자 메시지 입력
 
   // req.session.user_key = user_key;
   // req.session.userSelect = content;
-  req.session.userStatus = "true";
-  let answer = checkUser(req, user_key).then(() => console.log('no error'));
+  // req.session.userStatus = "true";
+  let answer = {
+    "message": {
+      "text": content
+    },
+    "keyboard": {
+      "type": "buttons",
+      "buttons": ["계속 진행", "나가기"]
+    }
+  };
+  checkUser(user_key, (err, content) => {
+    if(err) {
+      console.log(err);
+    } else {
+      console.log(`returned answer : ${JSON.stringify(content)}`);
+      answer = content;
+      res.send(answer);
+    }
+  });
 
-  console.log(answer);
+ /* console.log(answer);
   if(req.session.userStatus === "false") {
     answer = {
       "message": {
@@ -80,13 +98,13 @@ app.post('/message', (req, res) => {  // 사용자 메시지 입력
         "text":"고객님의 주소를 입력해 주십시오\n 예) OO시 OO구 OO동 삼성레미안아파트 101동 101호"
       }
     };
-  }
+  }*/
 
-  req.session.destroy();
-  res.send(answer);
+  // req.session.destroy();
+  // res.send(answer);
 });
 
-const checkUser = async (req, user_key) => {
+const checkUser = (user_key, callback) => {
   let message = {
     "message": {
       "text": ""
@@ -98,38 +116,39 @@ const checkUser = async (req, user_key) => {
     "buttons": ["예", "아니오"]
   };
 
-  console.log('before findOne');
-  await User.findOne({"key": user_key})
-    .then((user) => {
-      if(user) {
-        message = {
-          "message": {
-            "text": "이미 존재하는 유저입니다.\n이어서 작성하시겠습니까?"
-          },
-          "keyboard": answer
-        };
-        console.log(message);
-        return message;
-      } else {
-        User.create({"key": user_key}, (err) => {
-          // if(err) return res.json(err);
-          if (err) return false;
+  //let user = User.findOne({"key": user_key});
 
-          console.log('Success');
-          return "new";
-        });
-      }
-    }).catch((err) => {
+   /*message = User.findOne({"key": user_key})
+      .then((user) => {
+        if (user) {
+          message = {
+            "message": {
+              "text": "이미 존재하는 유저입니다.\n이어서 작성하시겠습니까?"
+            },
+            "keyboard": answer
+          };
+          console.log(message);
+          return message;
+        } else {
+          User.create({"key": user_key}, (err) => {
+            // if(err) return res.json(err);
+            if (err) return false;
+
+            console.log('Success');
+            return "new";
+          });
+        }
+      }).catch((err) => {
       return false;
     });
+   return message;*/
 
-  /*User.findOne({"key": user_key}, (err, user) => {
-    if(err) return false;
+  User.findOne({"key": user_key}, (err, user) => {
+    if(err) callback(err, null);
 
     if(user) {
       console.log('user key already exist');
 
-      //res.send('이미 존재하는 유저입니다.\n이어서 작성하시겠습니까?');
       //req.session.userStatus = "exist";
       message = {
         "message": {
@@ -138,25 +157,29 @@ const checkUser = async (req, user_key) => {
         "keyboard": answer
       };
       console.log(message);
-      return message;
-      //askAddress();
-      /!*User
+      callback(null, message);
+      // askAddress();
+      /*User
         .updateOne({"key": user_key}, {"name": "exist"})
         .then(result => {
           return `[${result}], exist 님 정보가 생성되었습니다.`;
-        });*!/
+        });*/
     } else {
       User.create({"key": user_key}, (err) => {
-        // if(err) return res.json(err);
-        if(err) return false;
+        if(err) callback(err, null);
 
+        message = {
+          "message": {
+            "text": "새롭게 등록되었습니다.\n이어서 작성하시겠습니까?"
+          },
+          "keyboard": answer
+        };
         console.log('Success');
-        return "new";
+        callback(null, message);
         //res.redirect('/message');
       });
     }
-    console.log('inside findONe');
-  })*/
+  });
 };
 
 

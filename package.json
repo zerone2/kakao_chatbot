@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "connect-mongo": "^2.0.3",
+    "dotenv": "^6.2.0",
     "mongoose": "^5.4.4"
   }
 }
