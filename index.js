@@ -4,30 +4,6 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const mysqlDB = require('./mysql-db');
-// mysqlDB.connect();
-// const FileStore = require('session-file-store')(session);
-/*const mongoose = require('mongoose');
-const MongoStore = require('connect-mongo')(session);
-mongoose.connect('mongodb://localhost/zipadvisor_user');
-const db = mongoose.connection;
-
-db.once('err', () => {
-  console.log(err);
-});
-db.once('open', () => {
-  console.log('DB connected');
-});
-
-const UserSchema = mongoose.Schema({
-  num: Number,
-  key: String,
-  authority: String,
-  address: String,
-  acquiredDate: String,
-  acquiredPrice: Number
-});
-const User = mongoose.model('user', UserSchema);*/
-
 const app = express();
 
 app.use(bodyParser.urlencoded({extended: true}));
@@ -93,12 +69,6 @@ app.post('/message', (req, res) => {  // 사용자 메시지 입력
       "buttons": ["계속 진행", "나가기"]
     }
   };
-  //answer = checkUser(user_key);
-  /*checkUser(user_key).then((msg) => {
-    console.log(`returned answer : ${JSON.stringify(msg)}`);
-    answer = msg;
-    res.send(answer)
-  });*/
 
   //console.log(req.session);
   checkUser(req, user_key, (err, content) => {
