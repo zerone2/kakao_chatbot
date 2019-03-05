@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const mysqlDB = require('./mysql-db');
+const getAuth = require('./get-auth');
 const app = express();
 
 app.use(bodyParser.urlencoded({extended: true}));
@@ -21,10 +22,15 @@ app.use(session({
 }));
 
 app.use(express.static(path.join(__dirname, 'public')));
+// app.engine('html', require('ejs').renderFile);
+// app.set('view engine', 'html');
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+app.get('/test', (req,res) => {
+  res.sendFile(path.join(__dirname, 'public', 'test.html'));
+})
 
 app.get('/dbtest', (req, res) => {
   mysqlDB.query('select * from users', function(err, rows, fields) {
@@ -90,27 +96,28 @@ app.post('/message', (req, res) => {  // 사용자 메시지 입력
           console.log(err);
         } else {
           console.log(`returned answer : ${JSON.stringify(content)}`);
-
+          // answer = content.message;
+          answer = {
+            "message": {
+              "text": "분석을 위한 정보를 입력해주세요.",
+              // "photo": {
+              //   "url": "./public/zipfund.jpeg",
+              //   "width": 200,
+              //   "height": 200
+              // },
+              "message_button": {
+                "label": "입력하기",
+                "url": "http://localhost:3000/?key=" + user_key
+              }
+            },
+            "keyboard": {
+              "type": "buttons",
+              "buttons": ["되돌아가기"]
+            }
+          };
+          res.send(answer);
         }
       });
-      answer = {
-        "message": {
-          "text": "분석을 위한 정보를 입력해주세요.",
-          // "photo": {
-          //   "url": "./public/zipfund.jpeg",
-          //   "width": 200,
-          //   "height": 200
-          // },
-          "message_button": {
-            "label": "입력하기",
-            "url": "http://localhost:3000/finance?key=" + user_key
-          }
-        },
-        "keyboard": {
-          "type": "buttons",
-          "buttons": ["되돌아가기"]
-        }
-      };
       // res.send(answer);
       break;
     case '분석결과보기':
@@ -123,6 +130,14 @@ app.post('/message', (req, res) => {  // 사용자 메시지 입력
           if(content.nextInfo != null) req.session.nextInfo = content.nextInfo;
           // res.send(answer); // 콜백안에 넣어줘야 제대로 결과가 리턴됨.
         }
+      });
+      break;
+    case '등록하기':
+      getAuth((data) => {
+        console.log(data.args);
+        // res.render(data, (err, html) => {
+        //   res.send(html);
+        // })
       });
       break;
     case '입력완료':
@@ -141,7 +156,7 @@ app.post('/message', (req, res) => {  // 사용자 메시지 입력
       break;
   }
 
-  res.send(answer);
+  // res.send(answer);
 
 
   /*if(req.session.userStatus === "false") {
@@ -168,20 +183,22 @@ function checkUser2(req, user_key, callback) {
   let message = {};
   let answer = {
     "type": "buttons",
-    "buttons": ["예", "아니오"]
+    "buttons": ["등록하기", "아니오"]
   };
   mysqlDB.query(`select * from users where kakao_key=\'${user_key}\'`, (err, rows, fields) => {                       // db에서 user_key 가 이미 존재하는지 탐색
     console.log("in the query");
     if(!err) {                                                                                                        // 탐색에서 에러가 발생하지 않은 경우
       if(rows[0] === undefined) {                                                                                     // 만약 user_key 가 db안에 없다면
         console.log(`rows : ${JSON.stringify(rows)}`);
+        let details = {};
         message = {
           "message": {
             "text": "등록되지 않은 회원입니다. 회원 등록을 진행하시겠습니까??"
           },
           "keyboard": answer
         };
-        callback(null, message);                                                                                      // 콜백으로 메시지를 넘겨줌
+        let content = { message, details };
+        callback(null, content);                                                                                      // 콜백으로 메시지를 넘겨줌
       } else {                                                                                                        // user_key 가 이미 db에 존재하는 경우
         console.log(`rows[0] : ${JSON.stringify(rows[0])}, length : ${rows[0].firstChild}`);
         let nextInfo;
@@ -283,8 +300,6 @@ function checkUser(req, user_key, callback) {
     }
   });
 }
-
-
 
 const askAddress = () => {
   let answer = {
